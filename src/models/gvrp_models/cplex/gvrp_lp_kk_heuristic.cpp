@@ -1,0 +1,115 @@
+#include "models/gvrp_models/cplex/gvrp_lp_kk_heuristic.hpp"
+
+using namespace models;
+using namespace models::gvrp_models;
+
+Gvrp_lp_kk_heuristic::Gvrp_lp_kk_heuristic (const KK_model& kk_model_, const Matrix2DVal& x_, const Matrix3DVal& y_) : Gvrp_heuristic (kk_model_.instance), kk_model(kk_model_), x(x_), y(y_), valid(false) {}
+
+Gvrp_solution Gvrp_lp_kk_heuristic::run() {
+  list<list<Vertex>> routes;
+  list<Vertex> route;
+  int curr;    
+  //checking the depot neighboring
+  set<int> customers;
+  bool valid = true;
+  while (true) {
+    double maxFirst = -1,
+           remainingFuel = kk_model.instance.vehicleFuelCapacity,
+           remainingTime = kk_model.instance.timeLimit;
+    int nextCustomer = 0,
+           nextAFS = 0;
+    bool found = false;
+    for (int i = 1; i < kk_model.c0.size(); ++i) {
+      if (!customers.count(i)) {
+        if (x[0][i] > maxFirst) {
+          maxFirst = x[0][i];
+          nextCustomer = i;
+          found = true;
+        } else
+          for (int f = 0; f < kk_model.f0.size(); ++f)
+            if (y[0][f][i] > maxFirst) {
+              maxFirst = y[0][f][i];
+              nextAFS = f;
+              nextCustomer = i;
+              found = true;
+            }
+      }
+    }
+    if (!found)
+      break;
+    //update dss
+    route.push_back(Vertex(*kk_model.c0[0]));
+    if (maxFirst != x[0][nextCustomer]) {
+      if (kk_model.customerToAfsFuel(0, nextAFS) > remainingFuel || kk_model.afsToCustomerFuel(nextAFS, nextCustomer) > remainingFuel || remainingTime - kk_model.time(0, nextAFS, nextCustomer) < 0) {
+        valid = false;
+        break;
+      }
+      remainingFuel -= kk_model.afsToCustomerFuel(nextAFS, nextCustomer);
+      remainingTime -= kk_model.time(0, nextAFS, nextCustomer);
+      route.push_back(Vertex(*kk_model.f0[nextAFS]));
+    } else if (kk_model.customersFuel(0, nextCustomer) > remainingFuel || remainingTime - kk_model.time(0, nextCustomer) < 0) {
+      valid = false;
+      break;
+    } else {
+      remainingFuel -= kk_model.afsToCustomerFuel(0, nextCustomer);
+      remainingTime -= kk_model.time(0, nextCustomer);
+    }
+    route.push_back(Vertex(*kk_model.c0[nextCustomer]));
+    customers.insert(nextCustomer);
+    curr = nextCustomer;
+    //dfs
+    while (curr != 0) {
+      maxFirst = 0;
+      nextCustomer = 0;
+      nextAFS = 0;
+      found = false;
+      for (int i = 0; i < kk_model.c0.size(); ++i) {
+        if (!customers.count(i)) {
+          if (x[curr][i] > maxFirst) {
+            maxFirst = x[curr][i];
+            nextCustomer = i;
+            found = true;
+          } else
+            for (int f = 0; f < kk_model.f0.size(); ++f)
+              if (y[curr][f][i] > 0) {
+                maxFirst = y[curr][f][i];
+                nextAFS = f;
+                nextCustomer = i;
+                found = true;
+              }
+        }
+      }
+      //repeated customer
+      if (!found) {
+        valid = false;
+        break;
+      }
+      //update dss
+      if (maxFirst != x[curr][nextCustomer]) {
+        if (kk_model.customerToAfsFuel(curr, nextAFS) > remainingFuel || kk_model.afsToCustomerFuel(nextAFS, nextCustomer) > kk_model.instance.vehicleFuelCapacity || remainingTime - kk_model.time(curr, nextAFS, nextCustomer) < 0) {
+          valid = false;
+          break;
+        }
+        remainingFuel = kk_model.instance.vehicleFuelCapacity - kk_model.afsToCustomerFuel(nextAFS, nextCustomer);
+        remainingTime -= kk_model.time(curr, nextAFS, nextCustomer);
+        route.push_back(Vertex(*kk_model.f0[nextAFS]));
+      } else if (kk_model.customersFuel(curr, nextCustomer) > remainingFuel || remainingTime - kk_model.time(curr, nextCustomer) < 0) {
+        valid = false;
+        break;
+      } else {
+        remainingFuel -= kk_model.customersFuel(curr, nextCustomer);
+        remainingTime -= kk_model.time(curr, nextCustomer);
+      }
+      route.push_back(Vertex(*kk_model.c0[nextCustomer]));
+      if (nextCustomer != 0)
+        customers.insert(nextCustomer);
+      curr = nextCustomer;
+    }
+    if (!valid)
+      break;
+    routes.push_back(route);
+    route = list<Vertex> ();
+  }
+  this->valid = valid;
+  return Gvrp_solution (routes, gvrp_instance);
+}
