@@ -32,20 +32,19 @@ void Cubic_model_tests::run() {
   string solution_name;
   Mip_solution_info mipSolInfo;
     //instance list
-//  list<string> instances = listFilesFromDir (PROJECT_INSTANCES_PATH + string("EMH/"));
+  list<string> instances = listFilesFromDir (PROJECT_INSTANCES_PATH + string("EMH/"));
 //  list<string> instances = listFilesFromDir (PROJECT_INSTANCES_PATH + string("new/consec/"));
-  list<string> instances = listFilesFromDir (PROJECT_INSTANCES_PATH + string("Andelmin-Bartolini/"));
+ // list<string> instances = listFilesFromDir (PROJECT_INSTANCES_PATH + string("Andelmin-Bartolini/"));
   list<Gvrp_instance> gvrp_instances;
   vector<double> lambdas (instances.size());
   int i = 0;
   for (const string& instance : instances){
-//    Gvrp_instance gvrp_instance = erdogan_instance_reader(PROJECT_INSTANCES_PATH + string("EMH/") + instance);
+    Gvrp_instance gvrp_instance = erdogan_instance_reader(PROJECT_INSTANCES_PATH + string("EMH/") + instance);
 //    Gvrp_instance gvrp_instance = matheus_instance_reader(PROJECT_INSTANCES_PATH + string("new/consec/") + instance);
-    Gvrp_instance gvrp_instance = andelmin_bartolini_instance_reader(PROJECT_INSTANCES_PATH + string("Andelmin-Bartolini/") + instance);
+ //   Gvrp_instance gvrp_instance = andelmin_bartolini_instance_reader(PROJECT_INSTANCES_PATH + string("Andelmin-Bartolini/") + instance);
     gvrp_instances.push_back(gvrp_instance); 
     i++; 
   }
-  return;
     //executions
   auto gvrp_instance = gvrp_instances.begin();
   ofstream resultsFile;
